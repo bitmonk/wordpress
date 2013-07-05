@@ -1,8 +1,11 @@
 #
+# Author:: Barry Steinglass (<barry@opscode.com>)
+# Author:: Justin Alan Ryan (<justizin@bitmonk.net>)
 # Cookbook Name:: wordpress
 # Recipe:: default
 #
 # Copyright 2009-2010, Opscode, Inc.
+# Copyright 2013, OneLogin, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +21,6 @@
 #
 
 include_recipe "apache2"
-include_recipe "mysql::server"
 include_recipe "mysql::ruby"
 include_recipe "php"
 include_recipe "php::module_mysql"
@@ -70,36 +72,42 @@ execute "untar-wordpress" do
   creates "#{node['wordpress']['dir']}/wp-settings.php"
 end
 
-execute "mysql-install-wp-privileges" do
-  command "/usr/bin/mysql -u root -p\"#{node['mysql']['server_root_password']}\" < #{node['mysql']['conf_dir']}/wp-grants.sql"
-  action :nothing
-end
+if node['wordpress']['db']['hostname'] == 'localhost'
+  include_recipe "mysql::server"
 
-template "#{node['mysql']['conf_dir']}/wp-grants.sql" do
-  source "grants.sql.erb"
-  owner "root"
-  group "root"
-  mode "0600"
-  variables(
-    :user     => node['wordpress']['db']['user'],
-    :password => node['wordpress']['db']['password'],
-    :database => node['wordpress']['db']['database']
-  )
-  notifies :run, "execute[mysql-install-wp-privileges]", :immediately
-end
-
-execute "create #{node['wordpress']['db']['database']} database" do
-  command "/usr/bin/mysqladmin -u root -p\"#{node['mysql']['server_root_password']}\" create #{node['wordpress']['db']['database']}"
-  not_if do
-    # Make sure gem is detected if it was just installed earlier in this recipe
-    require 'rubygems'
-    Gem.clear_paths
-    require 'mysql'
-    m = Mysql.new("localhost", "root", node['mysql']['server_root_password'])
-    m.list_dbs.include?(node['wordpress']['db']['database'])
+  execute "mysql-install-wp-privileges" do
+    command "/usr/bin/mysql -u root -p\"#{node['mysql']['server_root_password']}\" < #{node['mysql']['conf_dir']}/wp-grants.sql"
+    action :nothing
   end
-  notifies :create, "ruby_block[save node data]", :immediately unless Chef::Config[:solo]
+
+  template "#{node['mysql']['conf_dir']}/wp-grants.sql" do
+    source "grants.sql.erb"
+    owner "root"
+    group "root"
+    mode "0600"
+    variables(
+      :user     => node['wordpress']['db']['user'],
+      :password => node['wordpress']['db']['password'],
+      :database => node['wordpress']['db']['database']
+    )
+    notifies :run, "execute[mysql-install-wp-privileges]", :immediately
+  end
+
+  execute "create #{node['wordpress']['db']['database']} database" do
+    command "/usr/bin/mysqladmin -u root -p\"#{node['mysql']['server_root_password']}\" create #{node['wordpress']['db']['database']}"
+    not_if do
+      # Make sure gem is detected if it was just installed earlier in this recipe
+      require 'rubygems'
+      Gem.clear_paths
+      require 'mysql'
+      m = Mysql.new("localhost", "root", node['mysql']['server_root_password'])
+      m.list_dbs.include?(node['wordpress']['db']['database'])
+    end
+    notifies :create, "ruby_block[save node data]", :immediately unless Chef::Config[:solo]
+  end
+
 end
+
 
 # save node data after writing the MYSQL root password, so that a failed chef-client run that gets this far doesn't cause an unknown password to get applied to the box without being saved in the node data.
 unless Chef::Config[:solo]

@@ -1,9 +1,11 @@
 #
 # Author:: Barry Steinglass (<barry@opscode.com>)
+# Author:: Justin Alan Ryan (<justizin@bitmonk.net>)
 # Cookbook Name:: wordpress
 # Attributes:: wordpress
 #
 # Copyright 2009-2010, Opscode, Inc.
+# Copyright 2013, OneLogin, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +25,7 @@ default['wordpress']['version'] = "latest"
 default['wordpress']['checksum'] = ""
 default['wordpress']['repourl'] = "http://wordpress.org/"
 default['wordpress']['dir'] = "/var/www/wordpress"
+default['wordpress']['db']['hostname'] = 'localhost'
 default['wordpress']['db']['database'] = "wordpressdb"
 default['wordpress']['db']['user'] = "wordpressuser"
 default['wordpress']['server_aliases'] = [node['fqdn']]
